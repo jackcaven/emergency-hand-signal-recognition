@@ -5,8 +5,6 @@ import numpy as np
 
 # Constants
 gesture_timeout = 10  # seconds
-alarm_timeout = 5  # seconds
-
 
 # Enums
 class SequenceStage(Enum):
@@ -18,45 +16,56 @@ class SequenceStage(Enum):
 
 # Classes
 class GestureRecognizer:
-    def __init__(self):
+    def __init__(self, on_alarm=None):
         self.hands = hands.Hands(
             min_detection_confidence=0.5, min_tracking_confidence=0.5
         )
         self.stop_watch = StopWatch()
+        self.alarm_timer = StopWatch()
         self.sequence_started: bool = False
         self.thumb_in_palm: bool = False
         self.is_alarm_raised: bool = False
+        self.on_alarm = on_alarm
 
     def process(self, landmarks) -> None:
-        if self.is_alarm_raised and self.stop_watch.elapsed() <= alarm_timeout:
-            return
         
         if self.is_alarm_raised:
-            self.is_alarm_raised = False
-            self.stop_watch.reset()
+            if self.alarm_timer.elapsed() >= 5:
+                print("Alarm reset")
+                self.is_alarm_raised = False
+                self.alarm_timer.reset()
 
-        if self._is_palm_open(landmarks) and not self.is_alarm_raised:
-            self.sequence_started = True
-            self.stop_watch.start()
-            self.thumb_in_palm = False
-            self.is_alarm_raised = False
-        else:
-            self.is_alarm_raised = False
-            self.stop_watch.reset()
-
-        if not self.sequence_started or self.stop_watch.elapsed() > gesture_timeout:
-            self.sequence_started = False
-            self.stop_watch.reset()
             return
-
-        if not self.thumb_in_palm and self._is_thumb_in_palm(landmarks):
+        
+        is_palm: bool = self._is_palm_open(landmarks)
+        is_thumb_in_palm: bool = self._is_thumb_in_palm(landmarks)
+        is_thumb_trapped: bool = self._is_thumb_trapped(landmarks)
+        
+        if not self.sequence_started:
+            if is_palm:
+                self.sequence_started = True
+                self.stop_watch.start()
+            return
+        
+        if self.stop_watch.elapsed() >= gesture_timeout:
+            print("Gesture timeout")
+            self.sequence_started = False
+            self.thumb_in_palm = False
+            self.stop_watch.reset()
+        
+        if is_thumb_in_palm:
             self.thumb_in_palm = True
             return
-
-        if not self.is_alarm_raised and self._is_thumb_trapped(landmarks):
+        
+        if self.thumb_in_palm and is_thumb_trapped:
             self.is_alarm_raised = True
-            return
-
+            self.sequence_started = False
+            self.thumb_in_palm = False
+            self.stop_watch.reset()
+            self.alarm_timer.start()
+            if self.on_alarm:
+                self.on_alarm()
+        
     def get_stage(self) -> SequenceStage:
         if self.is_alarm_raised:
             return SequenceStage.ALARM
