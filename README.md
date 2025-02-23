@@ -15,7 +15,8 @@ https://github.com/user-attachments/assets/5b904c26-c480-4ae0-9980-148dc6a04668
 
 ## Future Work
 
-* Build an API for third party cameras to utilise the sequencing analytics
+* Build an API for third party cameras to utilise the sequencing recogntion
 * Improve from POC and increase accuracy of gesture recognition
   * Current implementation makes use of landmark positioning
   * Mediapipe has gesture recognition in-built which may provide greater results
+* Optimize to allow model to be run on the edge (e.g. locally on ring doorbells, body-worn cameras, and securtiy cameras)
